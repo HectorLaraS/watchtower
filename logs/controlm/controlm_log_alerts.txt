@@ -7,3 +7,4 @@ hlarapc,JOB_TEST_WATCHTOWER,2026-02-18 22:10:10,alert_id:910001,severity:V,prior
 hlarapc,JOB_NOT_IN_DB,2026-02-18 22:12:10,alert_id:910004,severity:V,priority:Priority 3,group:Z-HPO-00A-SEV4,message:Ended not OK
 hlarapc,JOB_TEST_WATCHTOWER,2026-02-18 22:14:10,alert_id:910006,severity:V,priority:Priority 2,group:Z-HPO-999,message:-
 hlarapc,JOB_NOT_IN_DB,2026-02-18 22:12:10,alert_id:910044,severity:V,priority:Priority 3,group:Z-HPO-00A-SEV4,message:Ended not OK
+hlarapc,JOB_NOT_IN_DB,2026-02-18 22:12:10,alert_id:9100774,severity:V,priority:Priority 3,group:Z-HPO-00A-SEV4,message:Ended not OK

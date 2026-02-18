@@ -1,2 +1,3 @@
 ﻿python-dotenv
-install pyodbc
+pyodbc
+pywin32
