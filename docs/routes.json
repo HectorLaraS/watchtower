@@ -5,8 +5,8 @@
     {
       "id": 1,
       "name": "sandbox",
-      "ip_addresses": ["10.1.59.21"],
-      "hostnames": ["kcautopilotp01.kcscp.corp"]
+      "ip_addresses": ["10.1.59.21","192.168.100.73"],
+      "hostnames": ["kcautopilotp01.kcscp.corp","hlarapc"]
     },
     {
       "id": 2,

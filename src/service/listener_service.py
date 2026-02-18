@@ -1,21 +1,44 @@
 import logging
+import os
 from pathlib import Path
+
+from dotenv import load_dotenv
 
 from src.core.syslog_listener import SyslogListener, SyslogPacket
 from src.domain.models import SyslogEvent
 from src.service.syslog_parser import parse_syslog_rsyslog
+from src.service.routes_loader import load_routes, resolve_router
 from src.storage.mssql_writer import MSSQLWriter
 
 
 class ListenerService:
     def __init__(self, host="0.0.0.0", port=514):
+        load_dotenv()
+
         self.host = host
         self.port = port
 
         self._setup_logging()
 
+        # 🔹 Cargar rutas dinámicas
+        routes_path = os.getenv("ROUTES_PATH", "docs/routes.json")
+        self.routes_index = load_routes(routes_path)
+
+        logging.info(
+            "Routes loaded: version=%s default_router=%s",
+            self.routes_index.version,
+            self.routes_index.default_router
+        )
+
+        # 🔹 Inicializar writer MSSQL
         self.db_writer = MSSQLWriter()
-        self.listener = SyslogListener(host=self.host, port=self.port, on_message=self._on_message)
+
+        # 🔹 Inicializar listener
+        self.listener = SyslogListener(
+            host=self.host,
+            port=self.port,
+            on_message=self._on_message
+        )
 
     def _setup_logging(self):
         Path("logs").mkdir(exist_ok=True)
@@ -23,9 +46,14 @@ class ListenerService:
         logger = logging.getLogger()
         logger.setLevel(logging.INFO)
 
-        formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+        formatter = logging.Formatter(
+            "%(asctime)s - %(levelname)s - %(message)s"
+        )
 
-        file_handler = logging.FileHandler("logs/syslog_listener.log", encoding="utf-8")
+        file_handler = logging.FileHandler(
+            "logs/syslog_listener.log",
+            encoding="utf-8"
+        )
         file_handler.setFormatter(formatter)
 
         console_handler = logging.StreamHandler()
@@ -54,15 +82,21 @@ class ListenerService:
             raw=parsed["raw"],
         )
 
-        router_name = "raw"  # temporal hasta que carguemos docs/routes.json
+        # 🔹 Routing dinámico
+        router_name, reason = resolve_router(
+            self.routes_index,
+            event.source_ip,
+            event.hostname
+        )
 
-        # Insert MSSQL
+        # 🔹 Insertar en MSSQL
         self.db_writer.insert_syslog_event(event, router_name)
 
-        # Log local (archivo + consola)
+        # 🔹 Logging limpio (sin errores de placeholders)
         logging.info(
-            "[ROUTER=%s] src=%s host=%s app=%s sev=%s fac=%s msg=%s",
+            "[ROUTER=%s reason=%s] src=%s host=%s app=%s sev=%s fac=%s msg=%s",
             router_name,
+            reason,
             event.source_ip,
             event.hostname,
             event.app_name,
@@ -72,7 +106,12 @@ class ListenerService:
         )
 
     def run_forever(self):
-        logging.info("ListenerService starting on %s:%s", self.host, self.port)
+        logging.info(
+            "ListenerService starting on %s:%s",
+            self.host,
+            self.port
+        )
+
         try:
             self.listener.start()
         except KeyboardInterrupt:
