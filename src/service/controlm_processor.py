@@ -23,6 +23,15 @@ def _safe(val):
     return val if val not in (None, "", "None") else "-"
 
 
+def _strip_key_prefix(val: Optional[str], key: str) -> Optional[str]:
+    """If a captured value accidentally includes 'key:' prefix, strip it safely."""
+    if not val:
+        return val
+    # Remove leading "key:" (case-insensitive) if present
+    val = re.sub(rf"(?i)^\s*{re.escape(key)}\s*:\s*", "", val).strip()
+    return val or None
+
+
 def _val_between(text: str, key: str, next_key: str) -> Optional[str]:
     pattern = rf"{re.escape(key)}:\s*(?P<val>.*?)\s+{re.escape(next_key)}:"
     m = re.search(pattern, text, flags=re.IGNORECASE | re.DOTALL)
@@ -165,6 +174,12 @@ class ControlMProcessor:
         sub_application = _val_between(text, "sub_application", "application")
         application = _val_between(text, "application", "job_name")
         job_name = _val_between(text, "job_name", "host_id")
+
+        # FIX: avoid 'application:application: RTR' if the captured value includes prefix
+        application = _strip_key_prefix(application, "application")
+
+        # Optional debug (remove later)
+        # logging.info("[ControlM] parsed application=%r", application)
 
         host_id = _val_between(text, "host_id", "alert_type")
         alert_type = _val_between(text, "alert_type", "closed_from_em")
