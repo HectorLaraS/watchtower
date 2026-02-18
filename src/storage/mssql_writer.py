@@ -4,9 +4,11 @@ from typing import Optional, Dict
 
 import pyodbc
 from dotenv import load_dotenv
+from pathlib import Path
 
 from src.domain.models import SyslogEvent
 
+PROJECT_ROOT = Path(r"D:\cpkc_tac_programs\watchtower")
 
 class MSSQLWriter:
     """
@@ -16,7 +18,7 @@ class MSSQLWriter:
     """
 
     def __init__(self):
-        load_dotenv()
+        load_dotenv(PROJECT_ROOT/".env",override=True)
 
         self.driver = os.getenv("MSSQL_DRIVER", "ODBC Driver 18 for SQL Server")
         self.server = os.getenv("MSSQL_SERVER")

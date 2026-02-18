@@ -40,8 +40,9 @@ def _val_after(text: str, key: str) -> Optional[str]:
 
 
 def _date_value(text: str, key: str) -> Optional[str]:
+    old_format = f"Detected Entry: {text}"
     pattern = rf"{re.escape(key)}:\s*(?P<dt>\d{{4}}-\d{{2}}-\d{{2}}\s+\d{{2}}:\d{{2}}:\d{{2}})"
-    m = re.search(pattern, text, flags=re.IGNORECASE)
+    m = re.search(pattern, old_format, flags=re.IGNORECASE)
     if not m:
         return None
     return _norm(m.group("dt"))

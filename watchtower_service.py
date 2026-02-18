@@ -7,7 +7,7 @@ import win32service
 import win32serviceutil
 import servicemanager
 
-PROJECT_ROOT = r"D:\PythonGeneral\proyectos\watchtower"
+PROJECT_ROOT = r"D:\cpkc_tac_programs\watchtower"
 PYTHON_EXE = os.path.join(PROJECT_ROOT, ".venv", "Scripts", "python.exe")
 
 LOG_DIR = os.path.join(PROJECT_ROOT, "logs")

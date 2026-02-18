@@ -5,13 +5,13 @@
     {
       "id": 1,
       "name": "sandbox",
-      "ip_addresses": ["10.1.59.21","192.168.100.73"],
+      "ip_addresses": ["10.1.59.21","192.168.100.73", "10.1.59.228"],
       "hostnames": ["kcautopilotp01.kcscp.corp","hlarapc"]
     },
     {
       "id": 2,
       "name": "controlm-dev",
-      "ip_addresses": ["10.1.59.45"],
+      "ip_addresses": ["10.1.32.66"],
       "hostnames": ["kccontrolma10.kcscp.corp"]
     }
   ]
