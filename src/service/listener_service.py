@@ -9,11 +9,13 @@ from src.domain.models import SyslogEvent
 from src.service.syslog_parser import parse_syslog_rsyslog
 from src.service.routes_loader import load_routes, resolve_router
 from src.storage.mssql_writer import MSSQLWriter
-
 from src.service.controlm_processor import ControlMProcessor
 
 
 class ListenerService:
+    # Routers que deben ejecutar pipeline Control-M (explícito)
+    CONTROLM_ROUTERS = {"sandbox", "controlm-dev", "controlm"}
+
     def __init__(self, host="0.0.0.0", port=514):
         load_dotenv()
 
@@ -71,8 +73,10 @@ class ListenerService:
         logger.addHandler(file_handler)
         logger.addHandler(console_handler)
 
+    def _should_run_controlm(self, router_name: str) -> bool:
+        return router_name in self.CONTROLM_ROUTERS
+
     def _on_message(self, packet: SyslogPacket):
-        # Parse syslog estándar
         parsed = parse_syslog_rsyslog(packet.message)
 
         event = SyslogEvent(
@@ -98,7 +102,7 @@ class ListenerService:
             event.hostname
         )
 
-        # ✅ SIEMPRE imprime lo que llega (aunque sea raw)
+        # ✅ SIEMPRE imprime lo que llega
         summary = (
             f"[INCOMING router={router_name} reason={reason}] "
             f"src={event.source_ip}:{event.source_port} "
@@ -107,41 +111,70 @@ class ListenerService:
             f"sev={event.severity if event.severity is not None else '-'} "
             f"msg={event.message.strip()}"
         )
-        print(summary)
+        print(summary, flush=True)
         logging.info(summary)
 
-        # Opcional: imprimir el raw completo
         if self.print_raw:
-            print(f"[RAW] {event.raw}")
+            print(f"[RAW] {event.raw}", flush=True)
             logging.info("[RAW] %s", event.raw)
 
-        # 1) Siempre insertar a watchtower_logs
+        # 1) Siempre insertar en watchtower_logs
         self.db_writer.insert_syslog_event(event, router_name)
 
-        # 3) Control-M pipeline (solo si NO es raw)
-        if router_name != "raw":
-            # 3.1 guardar también log crudo del router en watchtower_controlm
-            self.db_writer.insert_controlm_router_log(event, router_name)
+        # 2) Acciones por router (explícito)
+        if router_name == "raw":
+            logging.info("[ROUTER=raw] Stored only in watchtower_logs (no pipeline).")
+            return
 
-            # 3.2 aplicar reglas Control-M
-            alert = self.controlm.try_build_alert(
-                event=event,
-                router_name=router_name,
-                job_lookup=self.db_writer.lookup_controlm_job
+        if router_name == "sandbox":
+            logging.info("[ROUTER=sandbox] Executing Control-M pipeline...")
+            self._run_controlm_pipeline(event, router_name)
+            return
+
+        if router_name == "controlm-dev":
+            logging.info("[ROUTER=controlm-dev] Executing Control-M pipeline...")
+            self._run_controlm_pipeline(event, router_name)
+            return
+
+        if router_name == "controlm":
+            logging.info("[ROUTER=controlm] Executing Control-M pipeline...")
+            self._run_controlm_pipeline(event, router_name)
+            return
+
+        # Router no reconocido (por ahora se trata como raw, pero queda auditado)
+        logging.warning(
+            "[ROUTER=%s] Not explicitly handled. Treating as raw for now.",
+            router_name
+        )
+
+    def _run_controlm_pipeline(self, event: SyslogEvent, router_name: str) -> None:
+        """
+        Pipeline Control-M:
+          - Insert raw log a watchtower_controlm.ControlM_Router_Logs
+          - Aplicar reglas Control-M
+          - Si alerta => escribir alerts_to_work.log + controlm_log_alerts.txt
+        """
+        # 1) Guardar log crudo en DB controlm
+        self.db_writer.insert_controlm_router_log(event, router_name)
+
+        # 2) Reglas Control-M
+        alert = self.controlm.try_build_alert(
+            event=event,
+            router_name=router_name,
+            job_lookup=self.db_writer.lookup_controlm_job
+        )
+
+        if alert:
+            self.controlm.write_alert(alert)
+            logging.info(
+                "[ControlM] ALERT generated alert_id=%s job=%s group=%s priority=%s",
+                alert.alert_id,
+                alert.job_name,
+                alert.group_code,
+                alert.incident_priority
             )
-
-            if alert:
-                self.controlm.write_alert(alert)
-                logging.info(
-                    "[ControlM] ALERT generated alert_id=%s job=%s group=%s priority=%s",
-                    alert.alert_id,
-                    alert.job_name,
-                    alert.group_code,
-                    alert.incident_priority
-                )
-            else:
-                # 👇 útil para saber por qué "no ejecuta nada"
-                logging.info("[ControlM] No alert generated for this message (rules not met)")
+        else:
+            logging.info("[ControlM] No alert generated for this message (rules not met)")
 
     def run_forever(self):
         logging.info("ListenerService starting on %s:%s", self.host, self.port)
