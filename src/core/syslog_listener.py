@@ -1,5 +1,6 @@
 import socket
 import threading
+import logging
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Callable, Optional
@@ -16,16 +17,16 @@ class SyslogPacket:
 
 class SyslogListener:
     """
-    Core UDP Syslog Listener.
+    Core UDP Syslog Listener
     - Recibe datagrams UDP
-    - Decodifica a texto (sin romperse)
-    - Entrega paquetes a un callback (service layer)
+    - Decodifica a texto (no revienta)
+    - Entrega paquetes a callback (service layer)
     """
 
     def __init__(
         self,
         host: str = "0.0.0.0",
-        port: int = 514,
+        port: int = 1514,
         buffer_size: int = 8192,
         on_message: Optional[Callable[[SyslogPacket], None]] = None,
     ):
@@ -38,24 +39,20 @@ class SyslogListener:
         self._stop_event = threading.Event()
 
     def start(self) -> None:
-        """Bloqueante: inicia el loop de recepción hasta que se llame stop()."""
         if self._sock is not None:
             raise RuntimeError("Listener already started")
 
         self._sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        # Recomendado para reinicios rápidos
         self._sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-
         self._sock.bind((self.host, self.port))
-        self._sock.settimeout(1.0)  # para poder checar stop_event
+        self._sock.settimeout(1.0)
 
         while not self._stop_event.is_set():
             try:
                 data, (ip, src_port) = self._sock.recvfrom(self.buffer_size)
             except socket.timeout:
-                continue  # revisa stop_event
+                continue
             except OSError:
-                # Socket cerrado mientras esperaba
                 break
 
             received_at = datetime.now(timezone.utc)
@@ -73,14 +70,11 @@ class SyslogListener:
                 try:
                     self.on_message(packet)
                 except Exception:
-                    # Core NO debe reventar por fallas arriba (service/storage)
-                    # (logging lo haremos en service)
-                    pass
+                    logging.exception("on_message handler failed")
 
         self._cleanup()
 
     def stop(self) -> None:
-        """Solicita detener el listener de forma segura."""
         self._stop_event.set()
         self._cleanup()
 

@@ -1,0 +1,25 @@
+{
+    "version":1,
+    "routers":[
+        {
+            "id":1,
+            "name":"sandbox",
+            "hosts":[
+                {
+                    "hostname":"kcautopilotp01.kcscp.corp",
+                    "ip_address":"10.1.59.21"
+                }
+            ]
+        },
+        {
+            "id":1,
+            "name":"controlm-dev",
+            "hosts":[
+                {
+                    "hostname":"kccontrolma10.kcscp.corp",
+                    "ip_address":"10.1.59.45"
+                }
+            ]
+        }
+    ]
+}

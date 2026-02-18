@@ -9,17 +9,14 @@ class SyslogEvent:
     source_ip: str
     source_port: int
 
-    # Estándar (best effort)
     pri: Optional[int]
     facility: Optional[int]
     severity: Optional[int]
-    timestamp: Optional[datetime]   # viene sin año/tz en RFC3164, lo resolvemos best-effort
+    timestamp: Optional[datetime]
     timestamp_raw: Optional[str]
     hostname: Optional[str]
     app_name: Optional[str]
     pid: Optional[int]
-    
 
-    # Siempre
     message: str
     raw: str
