@@ -8,7 +8,7 @@ def main():
     load_dotenv()
 
     host = os.getenv("SYSLOG_HOST", "0.0.0.0")
-    port = int(os.getenv("SYSLOG_PORT", 1514))
+    port = int(os.getenv("SYSLOG_PORT", 514))
 
     service = ListenerService(host=host, port=port)
     service.run_forever()
