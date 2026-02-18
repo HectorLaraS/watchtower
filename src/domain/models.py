@@ -14,9 +14,11 @@ class SyslogEvent:
     facility: Optional[int]
     severity: Optional[int]
     timestamp: Optional[datetime]   # viene sin año/tz en RFC3164, lo resolvemos best-effort
+    timestamp_raw: Optional[str]
     hostname: Optional[str]
     app_name: Optional[str]
     pid: Optional[int]
+    
 
     # Siempre
     message: str

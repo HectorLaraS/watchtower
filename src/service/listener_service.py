@@ -16,11 +16,26 @@ class ListenerService:
 
     def _setup_logging(self):
         Path("logs").mkdir(exist_ok=True)
-        logging.basicConfig(
-            filename="logs/syslog_listener.log",
-            level=logging.INFO,
-            format="%(asctime)s - %(levelname)s - %(message)s",
+
+        logger = logging.getLogger()
+        logger.setLevel(logging.INFO)
+
+        formatter = logging.Formatter(
+            "%(asctime)s - %(levelname)s - %(message)s"
         )
+
+        # File handler
+        file_handler = logging.FileHandler("logs/syslog_listener.log")
+        file_handler.setFormatter(formatter)
+
+        # Console handler
+        console_handler = logging.StreamHandler()
+        console_handler.setFormatter(formatter)
+
+        logger.handlers = []  # limpia handlers previos
+        logger.addHandler(file_handler)
+        logger.addHandler(console_handler)
+
 
     def _on_message(self, packet: SyslogPacket):
         parsed = parse_syslog_rsyslog(packet.message)
@@ -33,6 +48,7 @@ class ListenerService:
             facility=parsed["facility"],
             severity=parsed["severity"],
             timestamp=parsed["timestamp"],
+            timestamp_raw=parsed["timestamp_raw"],
             hostname=parsed["hostname"],
             app_name=parsed["app_name"],
             pid=parsed["pid"],
@@ -49,6 +65,14 @@ class ListenerService:
             event.facility,
             event.hostname,
             event.message.strip(),
+        )
+
+        print(
+        f"[SYSLOG] src={event.source_ip} "
+        f"app={event.app_name} "
+        f"sev={event.severity} "
+        f"host={event.hostname} "
+        f"msg={event.message.strip()}"
         )
 
         # si quieres verlo en consola también:
