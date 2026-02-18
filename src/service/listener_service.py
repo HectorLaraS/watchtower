@@ -2,6 +2,8 @@ import logging
 from pathlib import Path
 
 from src.core.syslog_listener import SyslogListener, SyslogPacket
+from src.domain.models import SyslogEvent
+from src.service.syslog_parser import parse_syslog_rsyslog
 
 
 class ListenerService:
@@ -21,19 +23,39 @@ class ListenerService:
         )
 
     def _on_message(self, packet: SyslogPacket):
-        # v1: solo loggea
-        print(f"SYSLOG {packet.source_ip}:{packet.source_port} | {packet.message.strip()}")
+        parsed = parse_syslog_rsyslog(packet.message)
 
-        logging.info(
-            "SYSLOG from %s:%s | %s",
-            packet.source_ip,
-            packet.source_port,
-            packet.message.strip()
+        event = SyslogEvent(
+            received_at_utc=packet.received_at_utc,
+            source_ip=packet.source_ip,
+            source_port=packet.source_port,
+            pri=parsed["pri"],
+            facility=parsed["facility"],
+            severity=parsed["severity"],
+            timestamp=parsed["timestamp"],
+            hostname=parsed["hostname"],
+            app_name=parsed["app_name"],
+            pid=parsed["pid"],
+            message=parsed["message"],
+            raw=parsed["raw"],
         )
+
+        # v1: loggea lo más útil, pero sin depender de formato vendor
+        logging.info(
+            "src=%s app=%s sev=%s fac=%s host=%s msg=%s",
+            event.source_ip,
+            event.app_name,
+            event.severity,
+            event.facility,
+            event.hostname,
+            event.message.strip(),
+        )
+
+        # si quieres verlo en consola también:
+        # print(f"{event.source_ip} {event.hostname} {event.app_name}[{event.pid}] sev={event.severity} | {event.message.strip()}")
 
     def run_forever(self):
         logging.info("ListenerService starting on %s:%s", self.host, self.port)
-
         try:
             self.listener.start()
         except KeyboardInterrupt:
@@ -41,4 +63,3 @@ class ListenerService:
         finally:
             self.listener.stop()
             logging.info("ListenerService shutdown complete")
-
